@@ -7,9 +7,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <string.h>
 
-#define KEY_LENGTH 128  //128bit for the key
-#define IV_LENGTH 16    //16 bit, because we chose AES works with 16bit blocks
+#define KEY_BITS 128    //128bit for the key
+#define KEY_LENGTH (KEY_BITS/8) //in bytes
+#define IV_LENGTH 16    //16 bit, because we chose AES/MD4/Camellia works with 16bit blocks
 
 #define FILE_SIZE_1 (16)             //16B
 #define FILE_PATH_1 "../files/firstFile.txt"
@@ -31,17 +33,143 @@ double get_real_time_msec() {
 }
 
 double testing_encryption(const char* algorithm, const char* plaintext, int file_size, unsigned char* key, unsigned char* iv){
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new(); //preparing contex
-
-    if (EVP_EncryptInit_ex(ctx, plaintext, NULL, key, iv)!=1){
-        fprintf(stderr, "ERROR: something went wrong in EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv) inside testing encryption\n");
+    double start = get_real_time_msec();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        fprintf(stderr, "ERROR: EVP_CIPHER_CTX_new failed\n");
         return -1;
     }
 
-    
+    const EVP_CIPHER *cipher = NULL;
+    int key_bytes = KEY_LENGTH / 8;
+
+    if (strcmp(algorithm, AES) == 0) {
+        cipher = EVP_aes_128_cbc();        /* uses 16-byte key */
+    } else if (strcmp(algorithm, CAMELLIA) == 0) {
+        cipher = EVP_camellia_128_cbc();
+    } else if (strcmp(algorithm, SM4) == 0) {
+#ifdef EVP_sm4_cbc
+        cipher = EVP_sm4_cbc();
+#else
+        fprintf(stderr, "ERROR: SM4 not available in this OpenSSL build\n");
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+#endif
+    } else {
+        fprintf(stderr, "ERROR: unknown algorithm: %s\n", algorithm);
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    if (1 != EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv)) {
+        fprintf(stderr, "ERROR: EVP_EncryptInit_ex failed\n");
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    int block_size = EVP_CIPHER_block_size(cipher);
+    unsigned char *out = malloc((size_t)file_size + block_size);
+    if (!out) {
+        perror("malloc");
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    int outlen = 0, tmplen = 0;
+    if (file_size > 0) {
+        if (1 != EVP_EncryptUpdate(ctx, out, &outlen, (unsigned char*)plaintext, file_size)) {
+            fprintf(stderr, "ERROR: EVP_EncryptUpdate failed\n");
+            free(out);
+            EVP_CIPHER_CTX_free(ctx);
+            return -1;
+        }
+    }
+
+    if (1 != EVP_EncryptFinal_ex(ctx, out + outlen, &tmplen)) {
+        fprintf(stderr, "ERROR: EVP_EncryptFinal_ex failed\n");
+        free(out);
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    outlen += tmplen;
+
+    /* out contains the ciphertext of length outlen. We free it because caller only measures time. */
+    free(out);
+    EVP_CIPHER_CTX_free(ctx);
+
+    double elapsed = get_real_time_msec() - start;
+    return elapsed;
 }
 
-double testing_decryption(const char* algorithm, const char* ciphertext, int file_size, unsigned char* key, unsigned char* iv);
+double testing_decryption(const char* algorithm, const char* ciphertext, int file_size, unsigned char* key, unsigned char* iv){
+    double start = get_real_time_msec();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        fprintf(stderr, "ERROR: EVP_CIPHER_CTX_new failed\n");
+        return -1;
+    }
+
+    const EVP_CIPHER *cipher = NULL;
+    int key_bytes = KEY_LENGTH / 8;
+
+    if (strcmp(algorithm, AES) == 0) {
+        cipher = EVP_aes_128_cbc();
+    } else if (strcmp(algorithm, CAMELLIA) == 0) {
+        cipher = EVP_camellia_128_cbc();
+    } else if (strcmp(algorithm, SM4) == 0) {
+#ifdef EVP_sm4_cbc
+        cipher = EVP_sm4_cbc();
+#else
+        fprintf(stderr, "ERROR: SM4 not available in this OpenSSL build\n");
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+#endif
+    } else {
+        fprintf(stderr, "ERROR: unknown algorithm: %s\n", algorithm);
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    if (1 != EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv)) {
+        fprintf(stderr, "ERROR: EVP_DecryptInit_ex failed\n");
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    int block_size = EVP_CIPHER_block_size(cipher);
+    unsigned char *out = malloc((size_t)file_size + block_size);
+    if (!out) {
+        perror("malloc");
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    int outlen = 0, tmplen = 0;
+    if (file_size > 0) {
+        if (1 != EVP_DecryptUpdate(ctx, out, &outlen, (unsigned char*)ciphertext, file_size)) {
+            fprintf(stderr, "ERROR: EVP_DecryptUpdate failed\n");
+            free(out);
+            EVP_CIPHER_CTX_free(ctx);
+            return -1;
+        }
+    }
+
+    if (1 != EVP_DecryptFinal_ex(ctx, out + outlen, &tmplen)) {
+        /* bad padding / authentication (for AEAD) */
+        /* still measure time but report error */
+        //fprintf(stderr, "ERROR: EVP_DecryptFinal_ex failed (bad padding?)\n");
+        free(out);
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    outlen += tmplen;
+
+    free(out);
+    EVP_CIPHER_CTX_free(ctx);
+
+    double elapsed = get_real_time_msec() - start;
+    return elapsed;
+}
 
 void testing_aes(int number_file, unsigned char* key, unsigned char* iv){
     double result;
@@ -148,7 +276,7 @@ void testing_aes(int number_file, unsigned char* key, unsigned char* iv){
         break;
     }
 }
-testing_camellia(int number_file, unsigned char* key, unsigned char* iv){
+void testing_camellia(int number_file, unsigned char* key, unsigned char* iv){
     double result;
     int fd;
     char* shared_memory_pointer;
@@ -253,7 +381,7 @@ testing_camellia(int number_file, unsigned char* key, unsigned char* iv){
         break;
     }
 }
-testing_sm4(int number_file, unsigned char* key, unsigned char* iv){
+void testing_sm4(int number_file, unsigned char* key, unsigned char* iv){
     double result;
     int fd;
     char* shared_memory_pointer;
@@ -360,6 +488,7 @@ testing_sm4(int number_file, unsigned char* key, unsigned char* iv){
 }
 
 
+
 int main(){
     //working with the KEY and the IV
     unsigned char key[KEY_LENGTH];
@@ -377,12 +506,11 @@ int main(){
     //starting testing
     printf("---------------STARTING TESTING---------------\n");
     printf("TYPE - ALGORITHM - FILE_SIZE - RESULT(ms)\n");
-    double result;
     for (int i =1; i<=3; i++){
         for (int j = 1; j<=3; j++){
             if (i==1) testing_aes(j, key, iv);
-            else if (i=2) testing_camellia(j,key,iv);
-            else if (i=3) testing_sm4(j, key, iv);
+            else if (i==2) testing_camellia(j,key,iv);
+            else if (i==3) testing_sm4(j, key, iv);
             else{
                 fprintf(stderr, "ERROR: i should not be here :(\n");
                 return 1;
