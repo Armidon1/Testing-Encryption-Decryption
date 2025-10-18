@@ -13,25 +13,26 @@ Considering that report considers 3 files and for each file we have to do an enc
 **OUTPUT EXPECTED**:
 ---------------STARTING TESTING---------------
 TYPE - ALGORITHM - FILE_SIZE - RESULT(ms)
-Encryption - AES - 16 - 0.003497 
-Decryption - AES - 16 - 0.001283 
-Encryption - AES - 20480 - 0.019848 
-Decryption - AES - 20480 - 0.009818 
-Encryption - AES - 2097152 - 3.165075 
-Decryption - AES - 2097152 - 1.319533 
-Encryption - CAMELLIA - 16 - 0.015649 
-Decryption - CAMELLIA - 16 - 0.001512 
-Encryption - CAMELLIA - 20480 - 0.073708 
-Decryption - CAMELLIA - 20480 - 0.086002 
-Encryption - CAMELLIA - 2097152 - 8.718392 
-Decryption - CAMELLIA - 2097152 - 8.620698 
-Encryption - SM4 - 16 - 0.023354 
-Decryption - SM4 - 16 - 0.002073 
-Encryption - SM4 - 20480 - 0.125045 
-Decryption - SM4 - 20480 - 0.124885 
-Encryption - SM4 - 2097152 - 13.886084 
-Decryption - SM4 - 2097152 - 19.867156 
+Encryption - AES - 16 - 0.004488 
+Decryption - AES - 16 - 0.001363 
+Encryption - AES - 20480 - 0.020338 
+Decryption - AES - 20480 - 0.014277 
+Encryption - AES - 2097153 - 2.077194 
+Decryption - AES - 2097153 - 1.282958 
+Encryption - CAMELLIA - 16 - 0.010640 
+Decryption - CAMELLIA - 16 - 0.001513 
+Encryption - CAMELLIA - 20480 - 0.075011 
+Decryption - CAMELLIA - 20480 - 0.073719 
+Encryption - CAMELLIA - 2097153 - 8.465779 
+Decryption - CAMELLIA - 2097153 - 10.586073 
+Encryption - SM4 - 16 - 0.026389 
+Decryption - SM4 - 16 - 0.002004 
+Encryption - SM4 - 20480 - 0.135435 
+Decryption - SM4 - 20480 - 0.117872 
+Encryption - SM4 - 2097153 - 15.652388 
+Decryption - SM4 - 2097153 - 13.063711 
 ----------------------------------------------
+
 **NOTE**: The above output is just an example, the actual times may vary based on the system and implementation.
 
 **REPORT**:
