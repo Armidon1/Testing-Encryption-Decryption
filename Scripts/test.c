@@ -19,7 +19,7 @@
 #define FILE_SIZE_2 (20*1024)        //20KB 
 #define FILE_PATH_2 "../files/secondFile.txt"
 
-#define FILE_SIZE_3 (2*1024*1024)    //2MB 
+#define FILE_SIZE_3 ((2*1024*1024)+1)    //more than 2MB 
 #define FILE_PATH_3 "../files/thirdFile.txt"
 
 #define AES "aes-algorithm"

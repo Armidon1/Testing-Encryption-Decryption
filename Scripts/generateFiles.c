@@ -6,7 +6,7 @@
 
 #define SIZE_1 (16)             //16B
 #define SIZE_2 (20*1024)        //20KB 
-#define SIZE_3 (2*1024*1024)    //2MB 
+#define SIZE_3 ((2*1024*1024)+1)    // more than 2MB 
 
 void fill_document(FILE* fd, int size){ 
     for (int i=0; i<size;i++) putc('A',fd); //i could use fwrite with a string of 3MB size to be more efficient 
